@@ -94,7 +94,8 @@ pub fn execute_entry_point_call(
     )?;
     if call_info.execution.failed {
         return Err(EntryPointExecutionError::ExecutionFailed {
-            error_data: call_info.execution.retdata.0,
+            error_data: call_info.execution.retdata.0.clone(),
+            call_info: call_info.clone(),
         });
     }
 

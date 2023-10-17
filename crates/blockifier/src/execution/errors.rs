@@ -9,6 +9,7 @@ use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::hash::StarkFelt;
 use thiserror::Error;
 
+use crate::execution::call_info::CallInfo;
 use crate::execution::execution_utils::felts_as_str;
 use crate::state::errors::StateError;
 
@@ -123,7 +124,7 @@ impl VirtualMachineExecutionError {
 #[derive(Debug, Error)]
 pub enum EntryPointExecutionError {
     #[error("Execution failed. Failure reason: {:?}.", felts_as_str(.error_data))]
-    ExecutionFailed { error_data: Vec<StarkFelt> },
+    ExecutionFailed { error_data: Vec<StarkFelt>, call_info: CallInfo },
     #[error("Invalid input: {input_descriptor}; {info}")]
     InvalidExecutionInput { input_descriptor: String, info: String },
     #[error(transparent)]

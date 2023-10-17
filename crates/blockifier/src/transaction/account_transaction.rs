@@ -15,6 +15,7 @@ use crate::abi::constants as abi_constants;
 use crate::block_context::BlockContext;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
+use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::entry_point::{
     CallEntryPoint, CallType, EntryPointExecutionContext, ExecutionResources,
 };
@@ -490,6 +491,7 @@ impl AccountTransaction {
 
                     return Ok(ValidateExecuteCallInfo::new_reverted(
                         validate_call_info,
+                        None,
                         revert_error,
                         final_fee,
                         final_resources,
@@ -506,7 +508,7 @@ impl AccountTransaction {
                     actual_resources,
                 ))
             }
-            Err(_) => {
+            Err(err) => {
                 // Error during execution. Revert.
                 execution_state.abort();
                 let n_remaining_steps = execution_context
@@ -526,8 +528,27 @@ impl AccountTransaction {
                     n_reverted_steps,
                 )?;
 
+                // Change here for returning trace.
+                match err {
+                    TransactionExecutionError::ExecutionError(e) | 
+                    TransactionExecutionError::EntryPointExecutionError(e) => match e {
+                        EntryPointExecutionError::ExecutionFailed { error_data: _, call_info} => {
+                            return Ok(ValidateExecuteCallInfo::new_reverted(
+                                validate_call_info,
+                                Some(call_info),
+                                execution_context.error_trace(),
+                                actual_fee,
+                                actual_resources,
+                            ))
+                        },
+                        _ => {}
+                    },
+                    _ => {}
+                }
+
                 Ok(ValidateExecuteCallInfo::new_reverted(
                     validate_call_info,
+                    None,
                     execution_context.error_trace(),
                     actual_fee,
                     actual_resources,
@@ -690,13 +711,14 @@ impl ValidateExecuteCallInfo {
 
     pub fn new_reverted(
         validate_call_info: Option<CallInfo>,
+        execute_call_info: Option<CallInfo>,
         revert_error: String,
         final_fee: Fee,
         final_resources: ResourcesMapping,
     ) -> Self {
         Self {
             validate_call_info,
-            execute_call_info: None,
+            execute_call_info,
             revert_error: Some(revert_error),
             final_fee,
             final_resources,

@@ -200,6 +200,10 @@ impl EntryPointExecutionContext {
             block_context.vm_resource_fee_cost.get(constants::N_STEPS_RESOURCE).unwrap_or_else(
                 || panic!("{} must appear in `vm_resource_fee_cost`.", constants::N_STEPS_RESOURCE),
             );
+
+        if block_context.gas_prices.get_by_fee_type(&account_tx_context.fee_type()) == 0 {
+            return constants::MAX_STEPS_PER_TX;
+        }
         let max_gas = account_tx_context.max_fee().0
             / block_context.gas_prices.get_by_fee_type(&account_tx_context.fee_type());
         ((max_gas as f64 / gas_per_step).floor() as usize)

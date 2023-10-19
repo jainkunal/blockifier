@@ -546,6 +546,7 @@ impl AccountTransaction {
                         _ => {
                             const FF:&str = "Other TrnsactionExecutionError";
                             dbg!(FF);
+                            dbg!(e);
                         }
                     },
                     _ => {

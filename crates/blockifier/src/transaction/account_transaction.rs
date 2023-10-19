@@ -533,6 +533,8 @@ impl AccountTransaction {
                     TransactionExecutionError::ExecutionError(e) | 
                     TransactionExecutionError::EntryPointExecutionError(e) => match e {
                         EntryPointExecutionError::ExecutionFailed { error_data: _, call_info} => {
+                            const FF :&str = "EntryPointExecutionError";
+                            dbg!(FF);
                             return Ok(ValidateExecuteCallInfo::new_reverted(
                                 validate_call_info,
                                 Some(call_info),
@@ -541,9 +543,15 @@ impl AccountTransaction {
                                 actual_resources,
                             ))
                         },
-                        _ => {}
+                        _ => {
+                            const FF:&str = "Other TrnsactionExecutionError";
+                            dbg!(FF);
+                        }
                     },
-                    _ => {}
+                    _ => {
+                        const FF:&str = "Other error";
+                        dbg!(FF);
+                    }
                 }
 
                 Ok(ValidateExecuteCallInfo::new_reverted(
@@ -592,6 +600,9 @@ impl AccountTransaction {
                 validate,
             );
         }
+
+        const FF:&str = "Running revertible";
+        dbg!(FF);
 
         self.run_revertible(
             state,

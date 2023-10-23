@@ -73,10 +73,25 @@ impl From<RunnerError> for PostExecutionError {
 
 #[derive(Debug, Error)]
 pub enum VirtualMachineExecutionError {
-    #[error(transparent)]
-    CairoRunError(#[from] CairoRunError),
-    #[error(transparent)]
+    CairoRunError{
+        inner_calls: Vec<CallInfo>,
+        #[source]
+        source: CairoRunError,
+    },
     VirtualMachineError(#[from] VirtualMachineError),
+}
+
+impl std::fmt::Display for VirtualMachineExecutionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VirtualMachineExecutionError::CairoRunError{inner_calls: _, source} => {
+                write!(f, "{}", source)
+            }
+            VirtualMachineExecutionError::VirtualMachineError(inner) => {
+                write!(f, "{}", inner)
+            }
+        }
+    }
 }
 
 impl VirtualMachineExecutionError {
@@ -84,7 +99,7 @@ impl VirtualMachineExecutionError {
     /// the inner error (inner call errors) will not appear in the string.
     pub fn try_to_vm_trace(&self) -> String {
         match self {
-            VirtualMachineExecutionError::CairoRunError(CairoRunError::VmException(exception)) => {
+            VirtualMachineExecutionError::CairoRunError { inner_calls: _, source: CairoRunError::VmException(exception) } => {
                 let mut trace_string = format!("Error at pc=0:{}:\n", exception.pc);
                 let inner_exc_string = &exception.inner_exc.to_string();
 

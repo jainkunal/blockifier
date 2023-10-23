@@ -260,7 +260,13 @@ pub fn run_entry_point(
         hint_processor,
     );
 
-    Ok(result?)
+    // TODO: This is the place to unwrap the error properly,
+    // use the hint processor to ennhance the error
+    // Ok(result?)
+    result.map_err(|err| VirtualMachineExecutionError::CairoRunError {
+        inner_calls: hint_processor.inner_calls.clone(),
+        source: err
+    })
 }
 
 pub fn finalize_execution(

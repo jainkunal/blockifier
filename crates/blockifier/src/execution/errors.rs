@@ -144,4 +144,6 @@ pub enum EntryPointExecutionError {
         #[source]
         source: VirtualMachineExecutionError,
     },
+    #[error("Execution failed, Kunal intervened.")]
+    Intervention,
 }

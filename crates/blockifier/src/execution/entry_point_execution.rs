@@ -82,7 +82,10 @@ pub fn execute_entry_point_call(
         entry_point,
         args,
         program_segment_size,
-    )?;
+    ).map_err(|err| {
+        dbg!(err);
+        EntryPointExecutionError::Intervention
+    })?;
 
     let call_info = finalize_execution(
         vm,

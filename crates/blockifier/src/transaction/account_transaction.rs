@@ -16,6 +16,7 @@ use crate::block_context::BlockContext;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
 use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::errors::VirtualMachineExecutionError::CairoRunError;
 use crate::execution::entry_point::{
     CallEntryPoint, CallType, EntryPointExecutionContext, ExecutionResources,
 };
@@ -537,11 +538,22 @@ impl AccountTransaction {
                             dbg!(FF);
                             dbg!(e);
                         },
-                        EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source} => {
+                        EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source} => match source {
+                            CairoRunError {call_info, source} => {
                             const FF :&str = "VirtualMachineExecutionErrorWTrace";
                             dbg!(FF);
                             dbg!(source);
                             dbg!(trace);
+                            // dbg!(call_info);
+                            return Ok(ValidateExecuteCallInfo::new_reverted(
+                                validate_call_info,
+                                call_info,
+                                execution_context.error_trace(),
+                                actual_fee,
+                                actual_resources,
+                            ))
+                        }
+                        _ => {}
                         },
                         EntryPointExecutionError::ExecutionFailed { error_data: _ } => {
                             const FF :&str = "EntryPointExecutionError";

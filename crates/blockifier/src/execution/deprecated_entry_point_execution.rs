@@ -8,6 +8,8 @@ use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::hash::StarkHash;
 
+use crate::execution::call_info::Retdata;
+use crate::retdata;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{CONSTRUCTOR_ENTRY_POINT_NAME, DEFAULT_ENTRY_POINT_SELECTOR};
 use crate::execution::call_info::{CallExecution, CallInfo};
@@ -60,7 +62,7 @@ pub fn execute_entry_point_call(
     let previous_vm_resources = syscall_handler.resources.vm_resources.clone();
 
     // Execute.
-    run_entry_point(&mut vm, &mut runner, &mut syscall_handler, entry_point_pc, args)?;
+    run_entry_point(&mut vm, &mut runner, &mut syscall_handler, call.clone(), entry_point_pc, args)?;
 
     Ok(finalize_execution(
         vm,
@@ -193,6 +195,7 @@ pub fn run_entry_point(
     vm: &mut VirtualMachine,
     runner: &mut CairoRunner,
     hint_processor: &mut DeprecatedSyscallHintProcessor<'_>,
+    call: CallEntryPoint,
     entry_point_pc: usize,
     args: Args,
 ) -> Result<(), VirtualMachineExecutionError> {
@@ -209,7 +212,22 @@ pub fn run_entry_point(
     );
 
     result.map_err(|err| VirtualMachineExecutionError::CairoRunError {
-        inner_calls: hint_processor.inner_calls.clone(),
+        call_info: Some(CallInfo {
+            call,
+            execution: CallExecution {
+                retdata: retdata![],
+                events: vec![],
+                l2_to_l1_messages: vec![],
+                failed: true,
+                // TODO: This can be calculated.
+                gas_consumed: 0,
+            },
+            // TODO: This can be calc
+            vm_resources: VmExecutionResources::default(),
+            inner_calls: hint_processor.inner_calls.clone(),
+            storage_read_values: hint_processor.read_values.clone(),
+            accessed_storage_keys: hint_processor.accessed_keys.clone(),
+        }),
         source: err
     })
 }

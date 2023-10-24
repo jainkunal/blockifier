@@ -11,6 +11,7 @@ use num_traits::ToPrimitive;
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
 
+use crate::retdata;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
 use crate::execution::entry_point::{
@@ -253,7 +254,22 @@ pub fn run_entry_point(
     );
 
     result.map_err(|err| VirtualMachineExecutionError::CairoRunError {
-        inner_calls: hint_processor.inner_calls.clone(),
+        call_info: Some(CallInfo {
+            call: hint_processor.call.clone(),
+            execution: CallExecution {
+                retdata: retdata![],
+                events: vec![],
+                l2_to_l1_messages: vec![],
+                failed: true,
+                // TODO: This can be calculated.
+                gas_consumed: 0,
+            },
+            // TODO: This can be calc
+            vm_resources: VmExecutionResources::default(),
+            inner_calls: hint_processor.inner_calls.clone(),
+            storage_read_values: hint_processor.read_values.clone(),
+            accessed_storage_keys: hint_processor.accessed_keys.clone(),
+        }),
         source: err
     })
 }

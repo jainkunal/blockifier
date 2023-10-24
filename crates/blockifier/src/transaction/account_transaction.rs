@@ -533,49 +533,21 @@ impl AccountTransaction {
                 match err {
                     TransactionExecutionError::ExecutionError(e) | 
                     TransactionExecutionError::EntryPointExecutionError(e) => match e {
-                        EntryPointExecutionError::VirtualMachineExecutionError(e) => {
-                            const FF :&str = "VirtualMachineExecutionError";
-                            dbg!(FF);
-                            dbg!(e);
+                        EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace: _, source} => match source {
+                            CairoRunError {call_info, source: _} => {
+                                return Ok(ValidateExecuteCallInfo::new_reverted(
+                                    validate_call_info,
+                                    call_info,
+                                    execution_context.error_trace(),
+                                    actual_fee,
+                                    actual_resources,
+                                ))
+                            }
+                            _ => {}
                         },
-                        EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source} => match source {
-                            CairoRunError {call_info, source} => {
-                            const FF :&str = "VirtualMachineExecutionErrorWTrace";
-                            dbg!(FF);
-                            dbg!(source);
-                            dbg!(trace);
-                            // dbg!(call_info);
-                            return Ok(ValidateExecuteCallInfo::new_reverted(
-                                validate_call_info,
-                                call_info,
-                                execution_context.error_trace(),
-                                actual_fee,
-                                actual_resources,
-                            ))
-                        }
                         _ => {}
-                        },
-                        EntryPointExecutionError::ExecutionFailed { error_data: _ } => {
-                            const FF :&str = "EntryPointExecutionError";
-                            dbg!(FF);
-                            return Ok(ValidateExecuteCallInfo::new_reverted(
-                                validate_call_info,
-                                None,
-                                execution_context.error_trace(),
-                                actual_fee,
-                                actual_resources,
-                            ))
-                        },
-                        _ => {
-                            const FF:&str = "Other TrnsactionExecutionError";
-                            dbg!(FF);
-                            dbg!(e);
-                        }
                     },
-                    _ => {
-                        const FF:&str = "Other error";
-                        dbg!(FF);
-                    }
+                    _ => {}
                 }
 
                 Ok(ValidateExecuteCallInfo::new_reverted(

@@ -61,12 +61,6 @@ pub struct CallInfo {
     pub accessed_storage_keys: HashSet<StorageKey>,
 }
 
-#[derive(Debug)]
-pub struct CallInfoErr {
-    pub call: CallEntryPoint,
-    pub inner_calls: Vec<CallInfo>,
-}
-
 impl CallInfo {
     /// Returns the set of class hashes that were executed during this call execution.
     // TODO: Add unit test for this method

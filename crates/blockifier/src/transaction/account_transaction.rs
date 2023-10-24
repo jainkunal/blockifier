@@ -532,12 +532,23 @@ impl AccountTransaction {
                 match err {
                     TransactionExecutionError::ExecutionError(e) | 
                     TransactionExecutionError::EntryPointExecutionError(e) => match e {
-                        EntryPointExecutionError::ExecutionFailed { error_data: _, call_info} => {
+                        EntryPointExecutionError::VirtualMachineExecutionError(e) => {
+                            const FF :&str = "VirtualMachineExecutionError";
+                            dbg!(FF);
+                            dbg!(e);
+                        },
+                        EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source} => {
+                            const FF :&str = "VirtualMachineExecutionErrorWTrace";
+                            dbg!(FF);
+                            dbg!(source);
+                            dbg!(trace);
+                        },
+                        EntryPointExecutionError::ExecutionFailed { error_data: _ } => {
                             const FF :&str = "EntryPointExecutionError";
                             dbg!(FF);
                             return Ok(ValidateExecuteCallInfo::new_reverted(
                                 validate_call_info,
-                                Some(call_info),
+                                None,
                                 execution_context.error_trace(),
                                 actual_fee,
                                 actual_resources,
@@ -601,9 +612,6 @@ impl AccountTransaction {
                 validate,
             );
         }
-
-        const FF:&str = "Running revertible";
-        dbg!(FF);
 
         self.run_revertible(
             state,

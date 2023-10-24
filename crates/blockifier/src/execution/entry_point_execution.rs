@@ -11,7 +11,7 @@ use num_traits::ToPrimitive;
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
 
-use crate::execution::call_info::{CallExecution, CallInfo, CallInfoErr, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
 use crate::execution::entry_point::{
     CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult, ExecutionResources,
@@ -82,14 +82,7 @@ pub fn execute_entry_point_call(
         entry_point,
         args,
         program_segment_size,
-    ).map_err(|err| {
-        dbg!(CallInfoErr {
-            call: syscall_handler.call.clone(),
-            inner_calls: syscall_handler.inner_calls.clone(),
-        });
-        dbg!(err);
-        EntryPointExecutionError::Intervention
-    })?;
+    )?;
 
     let call_info = finalize_execution(
         vm,
@@ -101,8 +94,7 @@ pub fn execute_entry_point_call(
     )?;
     if call_info.execution.failed {
         return Err(EntryPointExecutionError::ExecutionFailed {
-            error_data: call_info.execution.retdata.0.clone(),
-            call_info: call_info.clone(),
+            error_data: call_info.execution.retdata.0,
         });
     }
 
@@ -260,9 +252,6 @@ pub fn run_entry_point(
         hint_processor,
     );
 
-    // TODO: This is the place to unwrap the error properly,
-    // use the hint processor to ennhance the error
-    // Ok(result?)
     result.map_err(|err| VirtualMachineExecutionError::CairoRunError {
         inner_calls: hint_processor.inner_calls.clone(),
         source: err

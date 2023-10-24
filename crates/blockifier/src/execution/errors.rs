@@ -139,7 +139,7 @@ impl VirtualMachineExecutionError {
 #[derive(Debug, Error)]
 pub enum EntryPointExecutionError {
     #[error("Execution failed. Failure reason: {:?}.", felts_as_str(.error_data))]
-    ExecutionFailed { error_data: Vec<StarkFelt>, call_info: CallInfo },
+    ExecutionFailed { error_data: Vec<StarkFelt> },
     #[error("Invalid input: {input_descriptor}; {info}")]
     InvalidExecutionInput { input_descriptor: String, info: String },
     #[error(transparent)]
@@ -159,6 +159,4 @@ pub enum EntryPointExecutionError {
         #[source]
         source: VirtualMachineExecutionError,
     },
-    #[error("Execution failed, Kunal intervened.")]
-    Intervention,
 }

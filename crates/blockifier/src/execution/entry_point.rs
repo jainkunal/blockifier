@@ -17,6 +17,7 @@ use crate::execution::errors::{EntryPointExecutionError, PreExecutionError};
 use crate::execution::execution_utils::execute_entry_point_call;
 use crate::state::state_api::State;
 use crate::transaction::objects::{AccountTransactionContext, HasRelatedFeeType};
+use crate::execution::errors::VirtualMachineExecutionError;
 
 #[cfg(test)]
 #[path = "entry_point_test.rs"]
@@ -61,6 +62,8 @@ impl CallEntryPoint {
         context: &mut EntryPointExecutionContext,
     ) -> EntryPointExecutionResult<CallInfo> {
         context.current_recursion_depth += 1;
+        context.calls.push(vec![]);
+
         if context.current_recursion_depth > context.max_recursion_depth {
             return Err(EntryPointExecutionError::RecursionDepthExceeded);
         }
@@ -95,15 +98,37 @@ impl CallEntryPoint {
                     // On VM error, pack the stack trace into the propagated error.
                     EntryPointExecutionError::VirtualMachineExecutionError(error) => {
                         context.error_stack.push((storage_address, error.try_to_vm_trace()));
+
+                        match error {
+                            VirtualMachineExecutionError::CairoRunError {call_info, source} => {
+                                let mut ci = call_info.clone().unwrap();
+                                if (context.calls.len() > context.current_recursion_depth) {
+                                    ci.inner_calls.extend(context.calls[context.current_recursion_depth].clone().into_iter().rev());
+                                    context.calls[context.current_recursion_depth].clear();
+                                }
+                                context.calls[context.current_recursion_depth - 1].push(ci.clone());
+                                EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {
+                                    trace: context.error_trace(),
+                                    source: VirtualMachineExecutionError::CairoRunError {
+                                        call_info: Some(ci),
+                                        source,
+                                    },
+                                }
+                            },
+                            _ => EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {
+                                trace: context.error_trace(),
+                                source: error,
+                            }
+                        }
                         // TODO(Dori, 1/5/2023): Call error_trace only in the top call; as it is
                         // right now,  each intermediate VM error is wrapped
                         // in a VirtualMachineExecutionErrorWithTrace  error
                         // with the stringified trace of all errors below
                         // it.
-                        EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {
-                            trace: context.error_trace(),
-                            source: error,
-                        }
+                        // EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {
+                        //     trace: context.error_trace(),
+                        //     source: error,
+                        // }
                     }
                     other_error => other_error,
                 }
@@ -141,6 +166,8 @@ pub struct EntryPointExecutionContext {
     /// Used to track error stack for call chain.
     pub error_stack: Vec<(ContractAddress, String)>,
 
+    pub calls: Vec<Vec<CallInfo>>,
+
     current_recursion_depth: usize,
     // Maximum depth is limited by the stack size, which is configured at `.cargo/config.toml`.
     max_recursion_depth: usize,
@@ -157,6 +184,7 @@ impl EntryPointExecutionContext {
             n_emitted_events: 0,
             n_sent_messages_to_l1: 0,
             error_stack: vec![],
+            calls: vec![],
             account_tx_context,
             current_recursion_depth: 0,
             max_recursion_depth: block_context.max_recursion_depth,

@@ -1,7 +1,7 @@
 use cairo_felt::Felt252;
 use cairo_vm::serde::deserialize_program::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
-use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+use cairo_vm::vm::errors::{cairo_run_errors::CairoRunError, vm_errors::VirtualMachineError};
 use cairo_vm::vm::runners::builtin_runner::SEGMENT_ARENA_BUILTIN_NAME;
 use cairo_vm::vm::runners::cairo_runner::{
     CairoArg, CairoRunner, ExecutionResources as VmExecutionResources,
@@ -21,7 +21,7 @@ use crate::execution::errors::{
     EntryPointExecutionError, PostExecutionError, PreExecutionError, VirtualMachineExecutionError,
 };
 use crate::execution::execution_utils::{
-    read_execution_retdata, stark_felt_to_felt, write_maybe_relocatable, write_stark_felt, Args,
+    felt_to_stark_felt, read_execution_retdata, stark_felt_to_felt, write_maybe_relocatable, write_stark_felt, Args,
     ReadOnlySegments,
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
@@ -253,24 +253,61 @@ pub fn run_entry_point(
         hint_processor,
     );
 
-    result.map_err(|err| VirtualMachineExecutionError::CairoRunError {
-        call_info: Some(CallInfo {
-            call: hint_processor.call.clone(),
-            execution: CallExecution {
-                retdata: retdata![],
-                events: vec![],
-                l2_to_l1_messages: vec![],
-                failed: true,
-                // TODO: This can be calculated.
-                gas_consumed: 0,
-            },
-            // TODO: This can be calc
-            vm_resources: VmExecutionResources::default(),
-            inner_calls: hint_processor.inner_calls.clone(),
-            storage_read_values: hint_processor.read_values.clone(),
-            accessed_storage_keys: hint_processor.accessed_keys.clone(),
-        }),
-        source: err
+    result.map_err(|err| {
+        match err {
+            CairoRunError::VmException(exception) => {
+                let retdata = if exception.error_attr_value.is_some() {
+                    let error_attr_value = exception.error_attr_value.clone().unwrap();
+                    // Split error_attr_value into multiple strings if character length > 31
+                    Retdata(error_attr_value.as_bytes()
+                        .chunks(31)
+                        .map(|v| felt_to_stark_felt(&Felt252::from_bytes_be(v)))
+                        .collect::<Vec<StarkFelt>>())
+                } else {
+                    retdata![]
+                };
+                VirtualMachineExecutionError::CairoRunError {
+                    call_info: Some(CallInfo {
+                        call: hint_processor.call.clone(),
+                        execution: CallExecution {
+                            retdata,
+                            events: vec![],
+                            l2_to_l1_messages: vec![],
+                            failed: true,
+                            // TODO: This can be calculated.
+                            gas_consumed: 0,
+                        },
+                        // TODO: This can be calculated.
+                        vm_resources: VmExecutionResources::default(),
+                        inner_calls: hint_processor.inner_calls.clone(),
+                        storage_read_values: hint_processor.read_values.clone(),
+                        accessed_storage_keys: hint_processor.accessed_keys.clone(),
+                    }),
+                    source: cairo_vm::vm::errors::cairo_run_errors::CairoRunError::VmException(exception)
+                }
+            }
+            _ => {
+                VirtualMachineExecutionError::CairoRunError {
+                    call_info: Some(CallInfo {
+                        call: hint_processor.call.clone(),
+                        execution: CallExecution {
+                            retdata: retdata![],
+                            events: vec![],
+                            l2_to_l1_messages: vec![],
+                            failed: true,
+                            // TODO: This can be calculated.
+                            gas_consumed: 0,
+                        },
+                        // TODO: This can be calculated.
+                        vm_resources: VmExecutionResources::default(),
+                        inner_calls: hint_processor.inner_calls.clone(),
+                        storage_read_values: hint_processor.read_values.clone(),
+                        accessed_storage_keys: hint_processor.accessed_keys.clone(),
+                    }),
+                    source: err
+                }
+            }
+        }
     })
 }
 

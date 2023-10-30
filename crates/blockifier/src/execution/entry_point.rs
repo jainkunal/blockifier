@@ -102,7 +102,7 @@ impl CallEntryPoint {
                         match error {
                             VirtualMachineExecutionError::CairoRunError {call_info, source} => {
                                 let mut ci = call_info.clone().unwrap();
-                                if (context.calls.len() > context.current_recursion_depth) {
+                                if context.calls.len() > context.current_recursion_depth {
                                     ci.inner_calls.extend(context.calls[context.current_recursion_depth].clone().into_iter().rev());
                                     context.calls[context.current_recursion_depth].clear();
                                 }

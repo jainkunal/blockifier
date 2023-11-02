@@ -270,7 +270,7 @@ pub fn run_entry_point(
                         let traceback = exception.traceback.clone().unwrap();
                         // Split traceback on '\n' and take the element that starts with "Error Message: "
                         let error_message = traceback.split('\n')
-                            .find(|s| s.starts_with("Error Message: "))
+                            .find(|s| s.to_lowercase().starts_with("error message: "))
                             .unwrap_or("Error Message: Unknown error");
                         // Split error_message into multiple strings if character length > 31
                         let mut ret = Retdata(error_message.as_bytes()

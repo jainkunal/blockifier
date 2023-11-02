@@ -28,6 +28,8 @@ use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecution
 use crate::transaction::transaction_utils::{
     update_remaining_gas, verify_no_calls_to_other_contracts,
 };
+use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::errors::VirtualMachineExecutionError::CairoRunError;
 
 #[cfg(test)]
 #[path = "transactions_test.rs"]
@@ -449,10 +451,20 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             initial_gas: *remaining_gas,
         };
 
-        execute_call
-            .execute(state, resources, context)
-            .map(Some)
-            .map_err(TransactionExecutionError::ExecutionError)
+        match execute_call.execute(state, resources, context) {
+            Ok(v) => Ok(Some(v)),
+            Err(err) => {
+                match err {
+                    EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source} => match source {
+                        CairoRunError {call_info, source} => {
+                            return Ok(call_info);
+                        }
+                        _ => Err(TransactionExecutionError::ExecutionError(EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source}))
+                    },
+                    _ => Err(TransactionExecutionError::ExecutionError(err))
+                }
+            }
+        }
     }
 }
 

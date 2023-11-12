@@ -230,7 +230,17 @@ pub fn run_entry_point(
                         // Split traceback on '\n' and take the element that starts with "Error Message: "
                         let error_message = traceback.split('\n')
                             .find(|s| s.to_lowercase().starts_with("error message: "))
-                            .unwrap_or("Error Message: Unknown error");
+                            .unwrap_or_else(|| {
+                                match traceback.split('\n').find(|s| s.to_lowercase().contains("failure reason:")) {
+                                    Some(_) => {
+                                        let start_index = traceback.find("Failure reason: ").unwrap();
+                                        let end_index = start_index + traceback[start_index..].find(".\n").unwrap();
+                                        let reason = &traceback[start_index..end_index];
+                                        reason
+                                    },
+                                    _ => "Error Message: Unknown error"
+                                }
+                            });
                         // Split error_message into multiple strings if character length > 31
                         let mut ret = Retdata(error_message.as_bytes()
                             .chunks(31)

@@ -279,16 +279,30 @@ pub fn run_entry_point(
                                         let reason = &traceback[start_index..end_index];
                                         reason
                                     },
-                                    _ => &traceback
+                                    _ => "Error Message: Unknown error"
                                 }
                             });
-                        // Split error_message into multiple strings if character length > 31
-                        let mut ret = Retdata(error_message.as_bytes()
-                            .chunks(31)
-                            .map(|v| felt_to_stark_felt(&Felt252::from_bytes_be(v)))
-                            .collect::<Vec<StarkFelt>>());
-                        ret.0.insert(0, felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())));
-                        ret
+                        if error_message == "Error Message: Unknown error" {
+                            let x = match get_call_result(&vm, &hint_processor) {
+                                Ok(mut call_result) => {
+                                    call_result.retdata.0.insert(0, felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())));
+                                    call_result.retdata.0
+                                },                                    
+                                Err(_) => vec![
+                                    felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())),
+                                    felt_to_stark_felt(&Felt252::from_bytes_be("Error Message: Unknown error".as_bytes()))
+                                ]
+                            };
+                            Retdata(x)
+                        } else {
+                            // Split error_message into multiple strings if character length > 31
+                            let mut ret = Retdata(error_message.as_bytes()
+                                .chunks(31)
+                                .map(|v| felt_to_stark_felt(&Felt252::from_bytes_be(v)))
+                                .collect::<Vec<StarkFelt>>());
+                            ret.0.insert(0, felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())));
+                            ret
+                        }
                     } else {
                         retdata![]
                     };

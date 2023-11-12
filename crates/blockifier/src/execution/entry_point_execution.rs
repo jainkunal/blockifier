@@ -279,7 +279,7 @@ pub fn run_entry_point(
                                         let reason = &traceback[start_index..end_index];
                                         reason
                                     },
-                                    _ => "Error Message: Unknown error"
+                                    _ => &traceback
                                 }
                             });
                         // Split error_message into multiple strings if character length > 31

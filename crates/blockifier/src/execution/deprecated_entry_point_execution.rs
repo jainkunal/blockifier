@@ -225,34 +225,44 @@ pub fn run_entry_point(
                     ret.0.insert(0, felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())));
                     ret
                 } else {
-                    let retdata = if exception.traceback.is_some() {
-                        let traceback = exception.traceback.clone().unwrap();
-                        // Split traceback on '\n' and take the element that starts with "Error Message: "
-                        let error_message = traceback.split('\n')
-                            .find(|s| s.to_lowercase().starts_with("error message: "))
-                            .unwrap_or_else(|| {
-                                match traceback.split('\n').find(|s| s.to_lowercase().contains("failure reason:")) {
-                                    Some(_) => {
-                                        let start_index = traceback.find("Failure reason: ").unwrap();
-                                        let end_index = start_index + traceback[start_index..].find(".\n").unwrap();
-                                        let reason = &traceback[start_index..end_index];
-                                        reason
-                                    },
-                                    _ => "Error Message: Unknown error"
-                                }
-                            });
-                        // Split error_message into multiple strings if character length > 31
-                        let mut ret = Retdata(error_message.as_bytes()
-                            .chunks(31)
-                            .map(|v| felt_to_stark_felt(&Felt252::from_bytes_be(v)))
-                            .collect::<Vec<StarkFelt>>());
-                        ret.0.insert(0, felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())));
-                        ret
-                    } else {
-                        retdata![]
-                    };
-                    retdata
+                    let retdata = exception.inner_exc.to_string();
+                    // Split error_attr_value into multiple strings if character length > 31
+                    let mut ret = Retdata(retdata.as_bytes()
+                        .chunks(31)
+                        .map(|v| felt_to_stark_felt(&Felt252::from_bytes_be(v)))
+                        .collect::<Vec<StarkFelt>>());
+                    ret.0.insert(0, felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())));
+                    ret
                 };
+                // else {
+                //     let retdata = if exception.traceback.is_some() {
+                //         let traceback = exception.traceback.clone().unwrap();
+                //         // Split traceback on '\n' and take the element that starts with "Error Message: "
+                //         let error_message = traceback.split('\n')
+                //             .find(|s| s.to_lowercase().starts_with("error message: "))
+                //             .unwrap_or_else(|| {
+                //                 match traceback.split('\n').find(|s| s.to_lowercase().contains("failure reason:")) {
+                //                     Some(_) => {
+                //                         let start_index = traceback.find("Failure reason: ").unwrap();
+                //                         let end_index = start_index + traceback[start_index..].find(".\n").unwrap();
+                //                         let reason = &traceback[start_index..end_index];
+                //                         reason
+                //                     },
+                //                     _ => "Error Message: Unknown error"
+                //                 }
+                //             });
+                //         // Split error_message into multiple strings if character length > 31
+                //         let mut ret = Retdata(error_message.as_bytes()
+                //             .chunks(31)
+                //             .map(|v| felt_to_stark_felt(&Felt252::from_bytes_be(v)))
+                //             .collect::<Vec<StarkFelt>>());
+                //         ret.0.insert(0, felt_to_stark_felt(&Felt252::from_bytes_be("FAILED".as_bytes())));
+                //         ret
+                //     } else {
+                //         retdata![]
+                //     };
+                //     retdata
+                // };
                 VirtualMachineExecutionError::CairoRunError {
                     call_info: Some(CallInfo {
                         call,

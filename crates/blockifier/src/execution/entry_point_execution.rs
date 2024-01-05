@@ -393,7 +393,7 @@ pub fn run_entry_point(
 
 pub fn finalize_execution(
     mut vm: VirtualMachine,
-    runner: CairoRunner,
+    mut runner: CairoRunner,
     syscall_handler: SyscallHintProcessor<'_>,
     previous_vm_resources: VmExecutionResources,
     n_total_args: usize,
@@ -427,25 +427,27 @@ pub fn finalize_execution(
     let full_call_vm_resources = &syscall_handler.resources.vm_resources - &previous_vm_resources;
 
     let mut debugger_data: Option<DebuggerData> = None;
-    let relocation_table = vm.relocate_segments();
-    if relocation_table.is_ok() {
-        let relocation_table = relocation_table.unwrap();
-        let instruction_locations =
-            runner.get_program().get_relocated_instruction_locations(relocation_table.as_ref());
-        let debug_info =
-            instruction_locations.map(cairo_vm::serde::deserialize_program::DebugInfo::new);
-        let relocated_trace = vm.get_relocated_trace();   
+    if runner.relocate(&mut vm, true).is_ok() {
+        let relocation_table = vm.relocate_segments();
+        if relocation_table.is_ok() {
+            let relocation_table = relocation_table.unwrap();
+            let instruction_locations =
+                runner.get_program().get_relocated_instruction_locations(relocation_table.as_ref());
+            let debug_info =
+                instruction_locations.map(cairo_vm::serde::deserialize_program::DebugInfo::new);
+            let relocated_trace = vm.get_relocated_trace();   
 
-        if relocated_trace.is_ok() {
-            let relocated_trace = relocated_trace.unwrap();
-            debugger_data = Some(DebuggerData {
-                program: runner.get_program().clone(),
-                memory: runner.relocated_memory.clone(),
-                trace: relocated_trace.clone(),
-                program_base: 1,
-                debug_info: debug_info,
-            });
-        };
+            if relocated_trace.is_ok() {
+                let relocated_trace = relocated_trace.unwrap();
+                debugger_data = Some(DebuggerData {
+                    program: runner.get_program().clone(),
+                    memory: runner.relocated_memory.clone(),
+                    trace: relocated_trace.clone(),
+                    program_base: 1,
+                    debug_info: debug_info,
+                });
+            }
+        }
     }
 
     Ok(CallInfo {

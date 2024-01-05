@@ -1,6 +1,12 @@
 use std::collections::HashSet;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
+use cairo_vm::{
+    felt::Felt252,
+    serde::deserialize_program::DebugInfo,
+    types::program::Program,
+    vm::trace::trace_entry::TraceEntry,
+};
 use starknet_api::core::{ClassHash, EthAddress};
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
@@ -48,6 +54,15 @@ pub struct CallExecution {
     pub gas_consumed: u64,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct DebuggerData {
+    pub program: Program,
+    pub memory: Vec<Option<Felt252>>,
+    pub trace: Vec<TraceEntry>,
+    pub program_base: u64,
+    pub debug_info: Option<DebugInfo>,
+}
+
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CallInfo {
@@ -59,6 +74,7 @@ pub struct CallInfo {
     // Additional information gathered during execution.
     pub storage_read_values: Vec<StarkFelt>,
     pub accessed_storage_keys: HashSet<StorageKey>,
+    pub debugger_data: Option<DebuggerData>,
 }
 
 impl CallInfo {

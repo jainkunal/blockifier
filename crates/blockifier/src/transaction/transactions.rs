@@ -456,7 +456,7 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             Err(err) => {
                 match err {
                     EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source} => match source {
-                        CairoRunError {call_info, source} => {
+                        CairoRunError {call_info, ..} => {
                             return Ok(call_info);
                         }
                         _ => Err(TransactionExecutionError::ExecutionError(EntryPointExecutionError::VirtualMachineExecutionErrorWithTrace {trace, source}))

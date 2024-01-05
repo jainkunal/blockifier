@@ -279,6 +279,7 @@ pub fn run_entry_point(
                         inner_calls: hint_processor.inner_calls.clone(),
                         storage_read_values: hint_processor.read_values.clone(),
                         accessed_storage_keys: hint_processor.accessed_keys.clone(),
+                        debugger_data: None,
                     }),
                     source: cairo_vm::vm::errors::cairo_run_errors::CairoRunError::VmException(exception)
                 }
@@ -300,6 +301,7 @@ pub fn run_entry_point(
                         inner_calls: hint_processor.inner_calls.clone(),
                         storage_read_values: hint_processor.read_values.clone(),
                         accessed_storage_keys: hint_processor.accessed_keys.clone(),
+                        debugger_data: None,
                     }),
                     source: err
                 }
@@ -336,7 +338,7 @@ pub fn finalize_execution(
     // Has to happen after marking holes in segments as accessed.
     let vm_resources_without_inner_calls = runner
         .get_execution_resources(&vm)
-        .map_err(VirtualMachineError::TracerError)?
+        .map_err(VirtualMachineError::RunnerError)?
         .filter_unused_builtins();
     syscall_handler.resources.vm_resources += &vm_resources_without_inner_calls;
 
@@ -354,6 +356,7 @@ pub fn finalize_execution(
         inner_calls: syscall_handler.inner_calls,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
+        debugger_data: None,
     })
 }
 

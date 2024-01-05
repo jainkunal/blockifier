@@ -6,6 +6,10 @@ use cairo_vm::vm::runners::builtin_runner::SEGMENT_ARENA_BUILTIN_NAME;
 use cairo_vm::vm::runners::cairo_runner::{
     CairoArg, CairoRunner, ExecutionResources as VmExecutionResources,
 };
+use cairo_vm::vm::errors::{
+    memory_errors::MemoryError, trace_errors::TraceError,
+};
+use thiserror::Error;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::hash::StarkFelt;
@@ -26,6 +30,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
+use crate::execution::call_info::DebuggerData;
 
 // TODO(spapini): Try to refactor this file into a StarknetRunner struct.
 
@@ -43,6 +48,28 @@ pub struct CallResult {
     pub failed: bool,
     pub retdata: Retdata,
     pub gas_consumed: u64,
+}
+
+#[derive(Debug, Error)]
+pub enum DebuggerDataError {
+    #[error("Instruction is None at pc {0} when encoding")]
+    InstructionIsNone(String),
+    #[error(transparent)]
+    InstructionDecodeError(#[from] VirtualMachineError),
+    #[error(transparent)]
+    FailedToGetRelocationTable(#[from] MemoryError),
+    #[error(transparent)]
+    FailedToRelocateTrace(#[from] TraceError),
+    #[error("Failed to read file {0}")]
+    FailedToReadFile(String),
+    #[error("Input file is None {0}")]
+    InputFileIsNone(String),
+    #[error("Instruction encoding must be convertible to a u64")]
+    FailedToConvertInstructionEncoding,
+    #[error("Offset must be convertible to a usize")]
+    FailedToConvertOffset,
+    #[error("Imm address {0} must be convertible to a usize")]
+    FailedToImmAddress(String),
 }
 
 /// Executes a specific call to a contract entry point and returns its output.
@@ -115,7 +142,7 @@ pub fn initialize_execution_context<'a>(
     let proof_mode = false;
     let mut runner = CairoRunner::new(&contract_class.0.program, "starknet", proof_mode)?;
 
-    let trace_enabled = false;
+    let trace_enabled = true;
     let mut vm = VirtualMachine::new(trace_enabled);
 
     // Initialize program with all builtins.
@@ -333,6 +360,7 @@ pub fn run_entry_point(
                         inner_calls: hint_processor.inner_calls.clone(),
                         storage_read_values: hint_processor.read_values.clone(),
                         accessed_storage_keys: hint_processor.accessed_keys.clone(),
+                        debugger_data: None,
                     }),
                     source: cairo_vm::vm::errors::cairo_run_errors::CairoRunError::VmException(exception)
                 }
@@ -354,6 +382,7 @@ pub fn run_entry_point(
                         inner_calls: hint_processor.inner_calls.clone(),
                         storage_read_values: hint_processor.read_values.clone(),
                         accessed_storage_keys: hint_processor.accessed_keys.clone(),
+                        debugger_data: None,
                     }),
                     source: err
                 }
@@ -391,11 +420,34 @@ pub fn finalize_execution(
     // Has to happen after marking holes in segments as accessed.
     let vm_resources_without_inner_calls = runner
         .get_execution_resources(&vm)
-        .map_err(VirtualMachineError::TracerError)?
+        .map_err(VirtualMachineError::RunnerError)?
         .filter_unused_builtins();
     syscall_handler.resources.vm_resources += &vm_resources_without_inner_calls;
 
     let full_call_vm_resources = &syscall_handler.resources.vm_resources - &previous_vm_resources;
+
+    let mut debugger_data: Option<DebuggerData> = None;
+    let relocation_table = vm.relocate_segments();
+    if relocation_table.is_ok() {
+        let relocation_table = relocation_table.unwrap();
+        let instruction_locations =
+            runner.get_program().get_relocated_instruction_locations(relocation_table.as_ref());
+        let debug_info =
+            instruction_locations.map(cairo_vm::serde::deserialize_program::DebugInfo::new);
+        let relocated_trace = vm.get_relocated_trace();   
+
+        if relocated_trace.is_ok() {
+            let relocated_trace = relocated_trace.unwrap();
+            debugger_data = Some(DebuggerData {
+                program: runner.get_program().clone(),
+                memory: runner.relocated_memory.clone(),
+                trace: relocated_trace.clone(),
+                program_base: 1,
+                debug_info: debug_info,
+            });
+        };
+    }
+
     Ok(CallInfo {
         call: syscall_handler.call,
         execution: CallExecution {
@@ -409,6 +461,7 @@ pub fn finalize_execution(
         inner_calls: syscall_handler.inner_calls,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
+        debugger_data: debugger_data,
     })
 }
 

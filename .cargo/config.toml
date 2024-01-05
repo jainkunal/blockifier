@@ -1,10 +1,10 @@
 [build]
 # Configuration for these lints should be placed in `.clippy.toml` at the crate root.
 rustflags = [
-    "-Dwarnings",
+    "-Wwarnings",
     "-Dfuture-incompatible",
     "-Dnonstandard-style",
-    "-Drust-2018-idioms",
+    "-Wrust-2018-idioms",
     "-Dunused",
 ]
 

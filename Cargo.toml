@@ -19,11 +19,11 @@ ark-secp256k1 = "0.4.0"
 ark-secp256r1 = "0.4.0"
 assert_matches = "1.5.0"
 cached = "0.44.0"
-cairo-felt = "0.8.2"
-cairo-lang-casm = "2.1.0"
-cairo-lang-runner = "2.1.0"
-cairo-lang-starknet = "2.2.0"
-cairo-vm = "0.8.2"
+cairo-felt = { path = "../jainkunal-cairo-vm/felt", version="=0.9.0" }
+cairo-lang-casm = { path = "../cairo/crates/cairo-lang-casm", version = "= 2.3.1" }
+cairo-lang-runner = { path = "../cairo/crates/cairo-lang-runner", version = "= 2.3.1" }
+cairo-lang-starknet = { path = "../cairo/crates/cairo-lang-starknet", version = "= 2.3.1" }
+cairo-vm = { path = "../jainkunal-cairo-vm/vm", features=["with_tracer"], version="=0.9.0" }
 ctor = "0.2.0"
 derive_more = "0.99.17"
 indexmap = "1.9.2"
